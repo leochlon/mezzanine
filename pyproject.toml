@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mezzanine"
+version = "1.2.0"
+description = "Mezzanine: measure instability (warrant gaps) and distill symmetry-marginalized invariants / world models."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.23",
+  "torch>=2.1",
+  "transformers>=4.38",
+  "pillow>=10.0",
+  "matplotlib>=3.7",
+  "tqdm>=4.66",
+  "packaging>=23.0",
+]
+
+[project.optional-dependencies]
+# Configs / IO
+yaml = ["pyyaml>=6.0"]
+
+# Dataset adapters
+datasets = ["datasets>=2.17", "huggingface_hub>=0.20"]
+
+# Robotics adapters
+robotics = ["datasets>=2.17", "huggingface_hub>=0.20"]
+
+# Gymnasium adapters
+gym = ["gymnasium>=0.29"]
+
+# i-PhyRe interactive puzzles
+iphyre = ["pygame>=2.1.2", "pymunk", "iphyre"]
+
+
+# Molecular dynamics / LJ examples
+md = ["h5py>=3.9", "scipy>=1.10"]
+
+# Logging
+wandb = ["wandb>=0.16"]
+tensorboard = ["tensorboard>=2.15"]
+
+# Dev
+dev = ["pytest>=7.4", "ruff>=0.5", "mypy>=1.8"]
+
+all = [
+  "pyyaml>=6.0",
+  "datasets>=2.17",
+  "huggingface_hub>=0.20",
+  "gymnasium>=0.29",
+  "pygame>=2.1.2",
+  "pymunk",
+  "iphyre",
+  "wandb>=0.16",
+  "tensorboard>=2.15",
+  "h5py>=3.9",
+  "scipy>=1.10",
+]
+
+[project.scripts]
+mezzanine = "mezzanine.cli:main"
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mezzanine*"]
