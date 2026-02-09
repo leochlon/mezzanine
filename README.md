@@ -1,6 +1,6 @@
 # Mezzanine (v1.0)
 
-Mezzanine is a small research toolkit for **measuring instability** (the *warrant gap*) and for **distilling symmetry‑marginalized invariants** (“distill the expectation”) into a single forward pass.
+Mezzanine is a small research toolkit for **distilling symmetry‑marginalized invariants** (“distill the expectation”), and for **measuring instability** (the *warrant gap*) and **distilling symmetry‑marginalized invariant world models** into a single forward pass.
 
 > World models ≠ pixel prediction.  
 > Warranted inference ≠ maximum likelihood on a single realization.
