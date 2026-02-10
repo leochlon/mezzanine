@@ -55,6 +55,12 @@ With i‑PHYRE:
 pip install -e ".[iphyre]"
 ```
 
+With quark/gluon jets (EnergyFlow):
+```bash
+pip install -e ".[qg]"
+pip install pillow  # only needed for --make_gif
+```
+
 Everything:
 ```bash
 pip install -e ".[all]"
@@ -110,6 +116,34 @@ Outputs (in `--out`):
 - `results.json`
 - `diagnostics.png`
 - `montage.png`
+
+---
+
+## Particle physics: quark/gluon jets (EnergyFlow)
+
+This recipe measures the warrant gap under **particle permutation + internal SO(2) rotations**
+and distills a **single‑pass student** that approximates the symmetry‑marginalized predictor.
+
+Run:
+```bash
+mezzanine run qg_jets_distill --out out_qg \
+  --encoder qg_flatten \
+  --num_data 50000 --n_train 20000 --n_test 5000 \
+  --max_particles 64 \
+  --k_train 8 --k_test 16 \
+  --theta_max 6.283185307179586 \
+  --hard_label_weight 0.1 \
+  --make_gif --gif_bins 180 --gif_extent 3.2 --gif_ms 90
+```
+
+Notes:
+- `--cache_dir` is for the **latent cache**; dataset caching is `--ef_cache_dir` (defaults to `~/.energyflow`).
+- If the GIF looks empty, increase `--gif_extent` (typical `phi` range is about `[-π, π]`).
+
+Outputs (in `--out`):
+- `results.json`
+- `probs_test_views.npz`
+- `jet_nuisance.gif` (only if `--make_gif`)
 
 ---
 
@@ -208,3 +242,25 @@ See also:
 
 
 - **NEW (v1.2):** `hf_llm_hiddenstate_order_distill` — logits→hidden-state distillation for order-invariant BoolQ.
+
+
+### Finance recipe: bar-offset symmetry distillation (CSV)
+
+This recipe uses a simple tabular head on return-window features, measures the *bar-offset* warrant gap, then distills
+the symmetry-marginalized teacher back into a single-pass student:
+
+The repo includes a small public OHLCV sample CSV for offline runs/tests:
+- `examples/data/spy_daily_ohlcv.csv` — SPY.US daily bars (Stooq export), columns `Date,Open,High,Low,Close,Volume` (2000 rows)
+
+```bash
+mezzanine run finance_csv_bar_offset_distill --out out_finance \
+  --path examples/data/spy_daily_ohlcv.csv \
+  --timestamp_col Date --close_col Close \
+  --n_train 1400 --n_test 400 \
+  --lookback 32 --max_offset 1 --trend_lookback 128 \
+  --k_train 8 --k_test 16
+```
+
+Outputs (in `--out`):
+- `results.json` (includes a `make_break` verdict)
+- `diagnostics.png`
