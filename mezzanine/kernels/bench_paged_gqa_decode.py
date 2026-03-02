@@ -48,7 +48,6 @@ Notes
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import inspect
 import json
 import math
@@ -65,9 +64,11 @@ except Exception:  # pragma: no cover
     torch = None
 
 if torch is None:
+
     def no_grad():  # type: ignore
         def deco(fn):
             return fn
+
         return deco
 else:
     no_grad = torch.no_grad
@@ -75,7 +76,8 @@ else:
 
 def _require(pkg: str, err: Exception) -> None:
     raise RuntimeError(
-        f"Missing dependency: {pkg}. Install with: pip install {pkg}\n" f"Original error: {err}"
+        f"Missing dependency: {pkg}. Install with: pip install {pkg}\n"
+        f"Original error: {err}"
     )
 
 
@@ -103,6 +105,7 @@ except Exception:  # pragma: no cover
 # -----------------------------
 # Plot style (Unsloth-ish)
 # -----------------------------
+
 
 def apply_unsloth_style() -> Dict[str, str]:
     """Apply a clean Unsloth-like plotting style."""
@@ -153,6 +156,7 @@ def apply_unsloth_style() -> Dict[str, str]:
 # -----------------------------
 # Utilities
 # -----------------------------
+
 
 def dtype_from_str(s: str) -> torch.dtype:
     s = s.lower()
@@ -217,12 +221,16 @@ def call_flash_attn_kvcache(
     cu[1:] = torch.cumsum(seqlens.to(torch.int32), dim=0)
     T = k_bthd.shape[1]
     try:
-        return flash_fn(q_b1hd, k_bthd, v_bthd, causal=causal, cu_seqlens_k=cu, max_seqlen_k=T)
+        return flash_fn(
+            q_b1hd, k_bthd, v_bthd, causal=causal, cu_seqlens_k=cu, max_seqlen_k=T
+        )
     except (TypeError, RuntimeError):
         return flash_fn(q_b1hd, k_bthd, v_bthd, cu_seqlens_k=cu, max_seqlen_k=T)
 
 
-def bench_cuda_ms(fn: Callable[[], torch.Tensor], *, warmup: int, iters: int) -> Tuple[float, float, float]:
+def bench_cuda_ms(
+    fn: Callable[[], torch.Tensor], *, warmup: int, iters: int
+) -> Tuple[float, float, float]:
     """Return (median_ms, cv, mean_ms) using CUDA events."""
     torch.cuda.synchronize()
     for _ in range(warmup):
@@ -276,7 +284,9 @@ def is_oom(e: BaseException) -> bool:
 # -----------------------------
 
 
-def _get_first(cfg: Any, keys: Sequence[str], default: Optional[int] = None) -> Optional[int]:
+def _get_first(
+    cfg: Any, keys: Sequence[str], default: Optional[int] = None
+) -> Optional[int]:
     for k in keys:
         if hasattr(cfg, k):
             v = getattr(cfg, k)
@@ -308,14 +318,20 @@ def derive_model_spec(model_id: str) -> ModelSpec:
     hidden = int(_get_first(cfg, ["hidden_size", "n_embd", "d_model"]))
 
     if hidden % Hq != 0:
-        raise ValueError(f"hidden_size {hidden} not divisible by num_attention_heads {Hq} for {model_id}")
+        raise ValueError(
+            f"hidden_size {hidden} not divisible by num_attention_heads {Hq} for {model_id}"
+        )
     D = hidden // Hq
 
     if Hq % Hkv != 0:
-        raise ValueError(f"Hq {Hq} must be divisible by Hkv {Hkv} for GQA; model={model_id}")
+        raise ValueError(
+            f"Hq {Hq} must be divisible by Hkv {Hkv} for GQA; model={model_id}"
+        )
     g = Hq // Hkv
 
-    n_layers = int(_get_first(cfg, ["num_hidden_layers", "n_layer", "num_layers"], default=1))
+    n_layers = int(
+        _get_first(cfg, ["num_hidden_layers", "n_layer", "num_layers"], default=1)
+    )
     max_seq = int(
         _get_first(
             cfg,
@@ -334,7 +350,9 @@ def derive_model_spec(model_id: str) -> ModelSpec:
     vocab = int(_get_first(cfg, ["vocab_size"], default=32000))
     inter = int(_get_first(cfg, ["intermediate_size", "n_inner"], default=4 * hidden))
     hidden_kv = Hkv * D
-    attn_params = hidden * hidden + hidden * hidden_kv + hidden * hidden_kv + hidden * hidden
+    attn_params = (
+        hidden * hidden + hidden * hidden_kv + hidden * hidden_kv + hidden * hidden
+    )
     mlp_params = 3 * hidden * inter
     emb_params = vocab * hidden
     total = emb_params + n_layers * (attn_params + mlp_params)
@@ -416,7 +434,7 @@ def pack_paged_to_dense(
     # fast path if all ctx are full T
     ctx_min = int(cache.ctx_lens.min().item())
     ctx_max = int(cache.ctx_lens.max().item())
-    const_full_ctx = (ctx_min == ctx_max == T)
+    const_full_ctx = ctx_min == ctx_max == T
 
     if not const_full_ctx:
         k_dense.zero_()
@@ -456,8 +474,12 @@ def pack_paged_to_dense(
         else:
             k_blocks = cache.k.index_select(0, phys)
             v_blocks = cache.v.index_select(0, phys)
-            k_lin = k_blocks.view(bc, max_blocks, block, Hkv, D).reshape(bc, Tpad, Hkv, D)
-            v_lin = v_blocks.view(bc, max_blocks, block, Hkv, D).reshape(bc, Tpad, Hkv, D)
+            k_lin = k_blocks.view(bc, max_blocks, block, Hkv, D).reshape(
+                bc, Tpad, Hkv, D
+            )
+            v_lin = v_blocks.view(bc, max_blocks, block, Hkv, D).reshape(
+                bc, Tpad, Hkv, D
+            )
 
         k_dense[b0:b1, :t_max].copy_(k_lin[:, :t_max])
         v_dense[b0:b1, :t_max].copy_(v_lin[:, :t_max])
@@ -484,8 +506,15 @@ def dense_attn_fn_factory(
 
     if flash_fn is not None:
 
-        def _flash(q_bhd: torch.Tensor, k_bthd: torch.Tensor, v_bthd: torch.Tensor, seqlens: torch.Tensor) -> torch.Tensor:
-            out = call_flash_attn_kvcache(flash_fn, q_bhd, k_bthd, v_bthd, seqlens, causal=True)
+        def _flash(
+            q_bhd: torch.Tensor,
+            k_bthd: torch.Tensor,
+            v_bthd: torch.Tensor,
+            seqlens: torch.Tensor,
+        ) -> torch.Tensor:
+            out = call_flash_attn_kvcache(
+                flash_fn, q_bhd, k_bthd, v_bthd, seqlens, causal=True
+            )
             if out.ndim == 4:
                 return out[:, 0, :, :]
             if out.ndim == 3:
@@ -503,7 +532,12 @@ def dense_attn_fn_factory(
     except Exception:
         has_enable_gqa = False
 
-    def _sdpa(q_bhd: torch.Tensor, k_bthd: torch.Tensor, v_bthd: torch.Tensor, seqlens: torch.Tensor) -> torch.Tensor:
+    def _sdpa(
+        q_bhd: torch.Tensor,
+        k_bthd: torch.Tensor,
+        v_bthd: torch.Tensor,
+        seqlens: torch.Tensor,
+    ) -> torch.Tensor:
         # SDPA wants [B,H,S,D]
         q_ = q_bhd[:, :, None, :]  # [B,Hq,1,D]
         k_h = k_bthd.permute(0, 2, 1, 3)  # [B,Hkv,T,D]
@@ -520,7 +554,9 @@ def dense_attn_fn_factory(
         B, Hkv, T, D = k_h.shape
         k_rep = k_h[:, :, None, :, :].expand(B, Hkv, g, T, D).reshape(B, Hq, T, D)
         v_rep = v_h[:, :, None, :, :].expand(B, Hkv, g, T, D).reshape(B, Hq, T, D)
-        out = torch.nn.functional.scaled_dot_product_attention(q_, k_rep, v_rep, is_causal=False)
+        out = torch.nn.functional.scaled_dot_product_attention(
+            q_, k_rep, v_rep, is_causal=False
+        )
         return out[:, :, 0, :]
 
     return _sdpa
@@ -623,7 +659,9 @@ def specs_from_results(df: pd.DataFrame) -> List[ModelSpec]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--models", type=str, default=DEFAULT_MODELS)
-    ap.add_argument("--seqlens", type=str, default="512,1024,2048,4096,8192,16384,32768")
+    ap.add_argument(
+        "--seqlens", type=str, default="512,1024,2048,4096,8192,16384,32768"
+    )
     ap.add_argument("--hero_T", type=int, default=8192)
     ap.add_argument("--allow_exceed_maxpos", action="store_true")
 
@@ -652,11 +690,29 @@ def main() -> None:
     )
     ap.add_argument("--outdir", type=str, default="out_wow")
     ap.add_argument("--no_flash", action="store_true")
-    ap.add_argument("--results_csv", type=str, default="", help="Plot-only: path to results.csv")
-    ap.add_argument("--hero_table_csv", type=str, default="", help="Plot-only: path to hero_table.csv")
-    ap.add_argument("--plot_only", action="store_true", help="Skip benchmarks; render plots from CSVs")
-    ap.add_argument("--baseline_label", type=str, default="", help="Plot-only: baseline label (flash/sdpa)")
-    ap.add_argument("--device_label", type=str, default="", help="Plot-only: footer device label")
+    ap.add_argument(
+        "--results_csv", type=str, default="", help="Plot-only: path to results.csv"
+    )
+    ap.add_argument(
+        "--hero_table_csv",
+        type=str,
+        default="",
+        help="Plot-only: path to hero_table.csv",
+    )
+    ap.add_argument(
+        "--plot_only",
+        action="store_true",
+        help="Skip benchmarks; render plots from CSVs",
+    )
+    ap.add_argument(
+        "--baseline_label",
+        type=str,
+        default="",
+        help="Plot-only: baseline label (flash/sdpa)",
+    )
+    ap.add_argument(
+        "--device_label", type=str, default="", help="Plot-only: footer device label"
+    )
 
     ap.add_argument(
         "--flagship_model",
@@ -698,7 +754,9 @@ def main() -> None:
                     summary_df[col] = pd.to_numeric(summary_df[col], errors="coerce")
         specs = specs_from_results(df)
         if args.flagship_model:
-            flagship = next((s for s in specs if s.model_id == args.flagship_model), None)
+            flagship = next(
+                (s for s in specs if s.model_id == args.flagship_model), None
+            )
             if flagship is None:
                 flagship = max(specs, key=lambda s: s.approx_params_b)
         else:
@@ -737,9 +795,13 @@ def main() -> None:
 
         # Select flagship
         if args.flagship_model:
-            flagship = next((s for s in specs if s.model_id == args.flagship_model), None)
+            flagship = next(
+                (s for s in specs if s.model_id == args.flagship_model), None
+            )
             if flagship is None:
-                raise ValueError(f"--flagship_model={args.flagship_model} not in --models")
+                raise ValueError(
+                    f"--flagship_model={args.flagship_model} not in --models"
+                )
         else:
             flagship = max(specs, key=lambda s: s.approx_params_b)
 
@@ -762,7 +824,11 @@ def main() -> None:
         # Bench loop
         for spec in specs:
             # Clamp seqlens to model max_seq unless synthetic.
-            Ts = [t for t in seqlens_req if (args.allow_exceed_maxpos or t <= spec.max_seq)]
+            Ts = [
+                t
+                for t in seqlens_req
+                if (args.allow_exceed_maxpos or t <= spec.max_seq)
+            ]
             if len(Ts) == 0:
                 print(f"[skip] {spec.label}: no seqlens within max_seq={spec.max_seq}")
                 continue
@@ -821,10 +887,17 @@ def main() -> None:
                     cache.v.normal_(mean=0.0, std=0.5)
 
                     # Perm schedule (logical)
-                    perm = ours.build_perm_lbi(cache.block_table, cache.ctx_lens, cache.block_size, order="logical")
+                    perm = ours.build_perm_lbi(
+                        cache.block_table,
+                        cache.ctx_lens,
+                        cache.block_size,
+                        order="logical",
+                    )
 
                     # Query
-                    q = torch.randn((B, spec.Hq, spec.D), device=device, dtype=dtype, generator=gen)
+                    q = torch.randn(
+                        (B, spec.Hq, spec.D), device=device, dtype=dtype, generator=gen
+                    )
 
                 except RuntimeError as e:
                     if is_oom(e):
@@ -857,7 +930,9 @@ def main() -> None:
                                     oom=True,
                                 )
                             )
-                        print(f"[{spec.label:18s} T={T:<6d} B={B:<4d}] OOM allocating paged cache")
+                        print(
+                            f"[{spec.label:18s} T={T:<6d} B={B:<4d}] OOM allocating paged cache"
+                        )
                         torch.cuda.empty_cache()
                         continue
                     raise
@@ -886,13 +961,19 @@ def main() -> None:
                 def ensure_dense():
                     nonlocal k_dense, v_dense
                     if k_dense is None:
-                        k_dense = torch.empty((B, T, spec.Hkv, spec.D), device=device, dtype=dtype)
-                        v_dense = torch.empty((B, T, spec.Hkv, spec.D), device=device, dtype=dtype)
+                        k_dense = torch.empty(
+                            (B, T, spec.Hkv, spec.D), device=device, dtype=dtype
+                        )
+                        v_dense = torch.empty(
+                            (B, T, spec.Hkv, spec.D), device=device, dtype=dtype
+                        )
 
                 @no_grad()
                 def fn_pack_plus_attn() -> torch.Tensor:
                     ensure_dense()
-                    pack_paged_to_dense(cache=cache, k_dense=k_dense, v_dense=v_dense, chunk_B=8)
+                    pack_paged_to_dense(
+                        cache=cache, k_dense=k_dense, v_dense=v_dense, chunk_B=8
+                    )
                     return dense_attn(q, k_dense, v_dense, seqlens_i32)
 
                 # -----------------
@@ -909,7 +990,9 @@ def main() -> None:
                         )
                     except RuntimeError as e:
                         if is_oom(e):
-                            print(f"[agree] {spec.label:18s} T={T:<6d} B={B:<4d} skipped (OOM)")
+                            print(
+                                f"[agree] {spec.label:18s} T={T:<6d} B={B:<4d} skipped (OOM)"
+                            )
                         else:
                             raise
 
@@ -917,7 +1000,9 @@ def main() -> None:
                 # Benchmark OURS
                 # -----------------
                 try:
-                    med, cv, mean = bench_cuda_ms(fn_ours, warmup=args.warmup, iters=args.iters)
+                    med, cv, mean = bench_cuda_ms(
+                        fn_ours, warmup=args.warmup, iters=args.iters
+                    )
                     alloc_b, reserv_b = measure_peak_mem_bytes(fn_ours)
                     kv_tokens = float(B * T)
                     kv_tps = kv_tokens / (med / 1000.0)
@@ -988,7 +1073,9 @@ def main() -> None:
                     # Ensure dense alloc happens outside timing (like a steady-state server)
                     ensure_dense()
 
-                    med, cv, mean = bench_cuda_ms(fn_pack_plus_attn, warmup=args.warmup, iters=args.iters)
+                    med, cv, mean = bench_cuda_ms(
+                        fn_pack_plus_attn, warmup=args.warmup, iters=args.iters
+                    )
                     alloc_b, reserv_b = measure_peak_mem_bytes(fn_pack_plus_attn)
 
                     kv_tokens = float(B * T)
@@ -1054,11 +1141,24 @@ def main() -> None:
                         raise
 
                 # Print a one-line status if both exist
-                df_tmp = pd.DataFrame([asdict(r) for r in rows if r.model_id == spec.model_id and r.T == T])
+                df_tmp = pd.DataFrame(
+                    [
+                        asdict(r)
+                        for r in rows
+                        if r.model_id == spec.model_id and r.T == T
+                    ]
+                )
                 ours_ok = df_tmp[df_tmp.variant == "ours_paged"]
                 base_ok = df_tmp[df_tmp.variant == "pack_plus_dense_attn"]
-                if len(ours_ok) and len(base_ok) and (not bool(ours_ok.iloc[0].oom)) and (not bool(base_ok.iloc[0].oom)):
-                    sp = float(base_ok.iloc[0].median_ms) / float(ours_ok.iloc[0].median_ms)
+                if (
+                    len(ours_ok)
+                    and len(base_ok)
+                    and (not bool(ours_ok.iloc[0].oom))
+                    and (not bool(base_ok.iloc[0].oom))
+                ):
+                    sp = float(base_ok.iloc[0].median_ms) / float(
+                        ours_ok.iloc[0].median_ms
+                    )
                     print(
                         f"[{spec.label:18s} T={T:<6d} B={B:<4d}] pack+attn={float(base_ok.iloc[0].median_ms):7.3f}ms  "
                         f"ours={float(ours_ok.iloc[0].median_ms):7.3f}ms  speedup={sp:5.2f}x"
@@ -1104,15 +1204,25 @@ def main() -> None:
                 continue
 
             # Max context before OOM (within the attempted sweep)
-            base_ok = sub[(sub.variant == "pack_plus_dense_attn") & (sub.oom == False)]
-            ours_ok = sub[(sub.variant == "ours_paged") & (sub.oom == False)]
+            base_ok = sub[(sub.variant == "pack_plus_dense_attn") & (~sub["oom"])]
+            ours_ok = sub[(sub.variant == "ours_paged") & (~sub["oom"])]
 
             base_Tmax = int(base_ok["T"].max()) if len(base_ok) else 0
             ours_Tmax = int(ours_ok["T"].max()) if len(ours_ok) else 0
-            longer = (ours_Tmax / base_Tmax) if base_Tmax > 0 else float("inf") if ours_Tmax > 0 else float("nan")
+            longer = (
+                (ours_Tmax / base_Tmax)
+                if base_Tmax > 0
+                else float("inf")
+                if ours_Tmax > 0
+                else float("nan")
+            )
 
             # Choose a comparison T: prefer hero_T, else largest common successful T.
-            hero_T = args.hero_T if args.allow_exceed_maxpos else min(args.hero_T, spec.max_seq)
+            hero_T = (
+                args.hero_T
+                if args.allow_exceed_maxpos
+                else min(args.hero_T, spec.max_seq)
+            )
 
             base_hero = base_ok[base_ok["T"] == hero_T]
             ours_hero = ours_ok[ours_ok["T"] == hero_T]
@@ -1124,7 +1234,9 @@ def main() -> None:
                 b_mem = float(base_hero.iloc[0].peak_reserved_gb)
                 o_mem = float(ours_hero.iloc[0].peak_reserved_gb)
             else:
-                common_Ts = sorted(set(base_ok["T"].tolist()) & set(ours_ok["T"].tolist()))
+                common_Ts = sorted(
+                    set(base_ok["T"].tolist()) & set(ours_ok["T"].tolist())
+                )
                 if len(common_Ts) == 0:
                     continue
                 T_cmp = int(max(common_Ts))
@@ -1136,7 +1248,9 @@ def main() -> None:
                 o_mem = float(o.peak_reserved_gb)
 
             speedup = (b_ms / o_ms) if o_ms > 0 else float("nan")
-            vram_saving = ((b_mem - o_mem) / b_mem * 100.0) if b_mem > 0 else float("nan")
+            vram_saving = (
+                ((b_mem - o_mem) / b_mem * 100.0) if b_mem > 0 else float("nan")
+            )
 
             summary_rows.append(
                 {
@@ -1163,7 +1277,6 @@ def main() -> None:
     palette = apply_unsloth_style()
 
     # Global callouts
-    both_ok = df[(df.variant.isin(["pack_plus_dense_attn", "ours_paged"])) & (df.oom == False)]
     max_speedup = float("nan")
     max_vram_save = float("nan")
     if len(summary_df):
@@ -1173,7 +1286,11 @@ def main() -> None:
     max_longer = float("nan")
     if len(summary_df):
         # filter inf
-        tmp = summary_df[summary_df["Longer context (x)"].replace([math.inf, -math.inf], math.nan).notna()]
+        tmp = summary_df[
+            summary_df["Longer context (x)"]
+            .replace([math.inf, -math.inf], math.nan)
+            .notna()
+        ]
         if len(tmp):
             max_longer = float(tmp["Longer context (x)"].max())
 
@@ -1205,11 +1322,29 @@ def main() -> None:
 
     title_fs = 20
     subtitle_fs = title_fs
-    fig.text(0.5, 0.975, title_text, ha="center", va="top", fontsize=title_fs, fontweight="semibold")
+    fig.text(
+        0.5,
+        0.975,
+        title_text,
+        ha="center",
+        va="top",
+        fontsize=title_fs,
+        fontweight="semibold",
+    )
     if subtitle_text:
-        fig.text(0.5, 0.93, subtitle_text, ha="center", va="top", fontsize=subtitle_fs, fontweight="semibold")
+        fig.text(
+            0.5,
+            0.93,
+            subtitle_text,
+            ha="center",
+            va="top",
+            fontsize=subtitle_fs,
+            fontweight="semibold",
+        )
 
-    fig.subplots_adjust(top=0.90, bottom=0.07, left=0.04, right=0.985, hspace=0.28, wspace=0.22)
+    fig.subplots_adjust(
+        top=0.90, bottom=0.07, left=0.04, right=0.985, hspace=0.28, wspace=0.22
+    )
 
     # ---- Table panel
     ax_table.axis("off")
@@ -1218,13 +1353,23 @@ def main() -> None:
     else:
         disp = summary_df.copy()
         # prettify
-        disp["Speedup (x)"] = disp["Speedup (x)"].map(lambda x: f"{x:.1f}×" if pd.notna(x) else "—")
-        disp["VRAM saving (%)"] = disp["VRAM saving (%)"].map(lambda x: f"{x:.0f}%" if pd.notna(x) else "—")
+        disp["Speedup (x)"] = disp["Speedup (x)"].map(
+            lambda x: f"{x:.1f}×" if pd.notna(x) else "—"
+        )
+        disp["VRAM saving (%)"] = disp["VRAM saving (%)"].map(
+            lambda x: f"{x:.0f}%" if pd.notna(x) else "—"
+        )
         disp["Longer context (x)"] = disp["Longer context (x)"].map(
             lambda x: ("∞" if x == math.inf else f"{x:.1f}×") if pd.notna(x) else "—"
         )
 
-        cols = ["Model", "~Params (B)", "Speedup (x)", "VRAM saving (%)", "Longer context (x)"]
+        cols = [
+            "Model",
+            "~Params (B)",
+            "Speedup (x)",
+            "VRAM saving (%)",
+            "Longer context (x)",
+        ]
         disp = disp[cols]
 
         table = ax_table.table(
@@ -1260,11 +1405,29 @@ def main() -> None:
     ax_time.set_xlabel("Sequence length")
     ax_time.set_ylabel("Time per decode step (ms)")
 
-    def plot_series(ax, sdf: pd.DataFrame, ycol: str, *, label: str, color: str, ls: str, marker: str):
-        ok = sdf[sdf.oom == False]
+    def plot_series(
+        ax,
+        sdf: pd.DataFrame,
+        ycol: str,
+        *,
+        label: str,
+        color: str,
+        ls: str,
+        marker: str,
+    ):
+        ok = sdf[~sdf["oom"]]
         if len(ok) == 0:
             return
-        ax.plot(ok["T"], ok[ycol], label=label, color=color, linestyle=ls, marker=marker, linewidth=2.2, markersize=6)
+        ax.plot(
+            ok["T"],
+            ok[ycol],
+            label=label,
+            color=color,
+            linestyle=ls,
+            marker=marker,
+            linewidth=2.2,
+            markersize=6,
+        )
 
     plot_series(
         ax_time,
@@ -1290,12 +1453,14 @@ def main() -> None:
     ax_time.legend(loc="best")
 
     # Annotate baseline OOM
-    base_oom_Ts = subF_base[subF_base.oom == True]["T"].tolist()
+    base_oom_Ts = subF_base[subF_base["oom"]]["T"].tolist()
     if base_oom_Ts:
         oom_T = int(min(base_oom_Ts))
         # Put text near the top.
         y_top = ax_time.get_ylim()[1]
-        ax_time.axvline(oom_T, color=palette["baseline_light"], linestyle=":", linewidth=1.2)
+        ax_time.axvline(
+            oom_T, color=palette["baseline_light"], linestyle=":", linewidth=1.2
+        )
         ax_time.text(
             oom_T,
             y_top * 0.95,
@@ -1338,7 +1503,9 @@ def main() -> None:
     if base_oom_Ts:
         oom_T = int(min(base_oom_Ts))
         y_top = ax_mem.get_ylim()[1]
-        ax_mem.axvline(oom_T, color=palette["baseline_light"], linestyle=":", linewidth=1.2)
+        ax_mem.axvline(
+            oom_T, color=palette["baseline_light"], linestyle=":", linewidth=1.2
+        )
         ax_mem.text(
             oom_T,
             y_top * 0.95,

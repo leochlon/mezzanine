@@ -63,6 +63,7 @@ except Exception as e:  # pragma: no cover
 # Public data structure
 # -----------------------------
 
+
 @dataclass(frozen=True)
 class PagedKVCache:
     """
@@ -81,6 +82,7 @@ class PagedKVCache:
     block_size:
       int, tokens per block
     """
+
     k: torch.Tensor
     v: torch.Tensor
     block_table: torch.Tensor
@@ -118,15 +120,23 @@ class PagedKVCache:
 
         bt_b, bt_i = self.block_table.stride()
         return {
-            "k_blk": int(k_blk), "k_s": int(k_s), "k_h": int(k_h), "k_d": int(k_d),
-            "v_blk": int(v_blk), "v_s": int(v_s), "v_h": int(v_h), "v_d": int(v_d),
-            "bt_b": int(bt_b), "bt_i": int(bt_i),
+            "k_blk": int(k_blk),
+            "k_s": int(k_s),
+            "k_h": int(k_h),
+            "k_d": int(k_d),
+            "v_blk": int(v_blk),
+            "v_s": int(v_s),
+            "v_h": int(v_h),
+            "v_d": int(v_d),
+            "bt_b": int(bt_b),
+            "bt_i": int(bt_i),
         }
 
 
 # -----------------------------
 # Schedule precomputation
 # -----------------------------
+
 
 def build_perm_lbi(
     block_table: torch.Tensor,
@@ -166,9 +176,11 @@ def build_perm_lbi(
         perm[b, :nblocks] = lbi_sorted
     return perm
 
+
 # -----------------------------
 # Convenience: allocate a contiguous paged KV cache
 # -----------------------------
+
 
 @torch.no_grad()
 def allocate_paged_kv_cache(
@@ -206,52 +218,55 @@ def allocate_paged_kv_cache(
     block_table = torch.empty((B, max(1, nblocks)), device=device, dtype=torch.int32)
     for b in range(B):
         base = b * max(1, nblocks)
-        block_table[b, :] = torch.arange(base, base + max(1, nblocks), device=device, dtype=torch.int32)
+        block_table[b, :] = torch.arange(
+            base, base + max(1, nblocks), device=device, dtype=torch.int32
+        )
 
     ctx_lens = torch.zeros((B,), device=device, dtype=torch.int32)
-    return PagedKVCache(k=k, v=v, block_table=block_table, ctx_lens=ctx_lens, block_size=block_size, layout=layout)
+    return PagedKVCache(
+        k=k,
+        v=v,
+        block_table=block_table,
+        ctx_lens=ctx_lens,
+        block_size=block_size,
+        layout=layout,
+    )
 
 
 # -----------------------------
 # Single Triton kernel
 # -----------------------------
 
+
 @triton.jit
 def _paged_gqa_decode_kernel(
-    Q_ptr,          # [B, Hq, D]
-    K_ptr,          # paged blocks
+    Q_ptr,  # [B, Hq, D]
+    K_ptr,  # paged blocks
     V_ptr,
-    BT_ptr,         # [B, max_blocks]
-    PERM_ptr,       # [B, max_blocks]
-    CTX_ptr,        # [B]
-    BIDS_ptr,       # [B_bucket] batch ids
-    O_ptr,          # [B, Hq, D]
-
+    BT_ptr,  # [B, max_blocks]
+    PERM_ptr,  # [B, max_blocks]
+    CTX_ptr,  # [B]
+    BIDS_ptr,  # [B_bucket] batch ids
+    O_ptr,  # [B, Hq, D]
     # strides (in elements)
     stride_qb: tl.constexpr,
     stride_qh: tl.constexpr,
     stride_qd: tl.constexpr,
-
     stride_kblk: tl.constexpr,
     stride_ks: tl.constexpr,
     stride_kh: tl.constexpr,
     stride_kd: tl.constexpr,
-
     stride_vblk: tl.constexpr,
     stride_vs: tl.constexpr,
     stride_vh: tl.constexpr,
     stride_vd: tl.constexpr,
-
     stride_btb: tl.constexpr,
     stride_bti: tl.constexpr,
-
     stride_pb: tl.constexpr,
     stride_pi: tl.constexpr,
-
     stride_ob: tl.constexpr,
     stride_oh: tl.constexpr,
     stride_od: tl.constexpr,
-
     # params
     Hkv: tl.constexpr,
     G: tl.constexpr,
@@ -259,10 +274,10 @@ def _paged_gqa_decode_kernel(
     BLOCK_SIZE: tl.constexpr,
     BLOCKS_PER_ITER: tl.constexpr,
     D: tl.constexpr,
-    MAX_BLOCKS,                 # runtime loop bound
+    MAX_BLOCKS,  # runtime loop bound
     SCALE: tl.constexpr,
     LAYOUT_BHSD: tl.constexpr,  # 1 if bhsd else 0
-    USE_BF16: tl.constexpr,     # 1 if bf16 else 0
+    USE_BF16: tl.constexpr,  # 1 if bf16 else 0
 ):
     """
     One program handles one (bucket_index, kv_head), producing G query heads.
@@ -291,13 +306,18 @@ def _paged_gqa_decode_kernel(
     tl.multiple_of(offs_d, 8)
     tl.max_contiguous(offs_d, 16)
 
-    q_ptrs = Q_ptr + b_i64 * stride_qb + hq_i64[:, None] * stride_qh + offs_d[None, :] * stride_qd
+    q_ptrs = (
+        Q_ptr
+        + b_i64 * stride_qb
+        + hq_i64[:, None] * stride_qh
+        + offs_d[None, :] * stride_qd
+    )
     # Invalid heads (t>=G) are loaded as zeros.
     q = tl.load(q_ptrs, mask=mask_t[:, None], other=0.0)  # [GQ, D]
 
     # Online softmax state
     m = tl.full([GQ], -float("inf"), tl.float32)
-    l = tl.zeros([GQ], tl.float32)
+    l_sum = tl.zeros([GQ], tl.float32)
     acc = tl.zeros([GQ, D], tl.float32)
 
     # Token offsets for a tile of BLOCKS_PER_ITER blocks.
@@ -372,7 +392,7 @@ def _paged_gqa_decode_kernel(
         m_new = tl.maximum(m, m_blk)
 
         exp_scores = tl.exp(scores - m_new[:, None])
-        l_new = l * tl.exp(m - m_new) + tl.sum(exp_scores, axis=1)
+        l_sum_new = l_sum * tl.exp(m - m_new) + tl.sum(exp_scores, axis=1)
 
         alpha = tl.exp(m - m_new)
 
@@ -380,29 +400,39 @@ def _paged_gqa_decode_kernel(
         acc = acc * alpha[:, None] + tl.dot(exp_cast, v).to(tl.float32)
 
         m = m_new
-        l = l_new
+        l_sum = l_sum_new
 
-    out = acc / l[:, None]
+    out = acc / l_sum[:, None]
 
     # If the request has an empty cache (ctx==0), define output as zeros.
     out = tl.where(is_empty, 0.0, out)
 
-    out_ptrs = O_ptr + b_i64 * stride_ob + hq_i64[:, None] * stride_oh + offs_d[None, :] * stride_od
+    out_ptrs = (
+        O_ptr
+        + b_i64 * stride_ob
+        + hq_i64[:, None] * stride_oh
+        + offs_d[None, :] * stride_od
+    )
     # Only store valid query heads.
-    tl.store(out_ptrs, out.to(tl.bfloat16) if USE_BF16 else out.to(tl.float16), mask=mask_t[:, None])
+    tl.store(
+        out_ptrs,
+        out.to(tl.bfloat16) if USE_BF16 else out.to(tl.float16),
+        mask=mask_t[:, None],
+    )
 
 
 # -----------------------------
 # User-facing wrapper
 # -----------------------------
 
+
 @torch.no_grad()
 def paged_gqa_decode(
-    q: torch.Tensor,                  # [B, Hq, D]
+    q: torch.Tensor,  # [B, Hq, D]
     cache: PagedKVCache,
     *,
     perm_lbi: Optional[torch.Tensor] = None,  # [B, max_blocks] int32
-    batch_ids: Optional[torch.Tensor] = None, # [B_bucket] int32, defaults to arange(B)
+    batch_ids: Optional[torch.Tensor] = None,  # [B_bucket] int32, defaults to arange(B)
     out: Optional[torch.Tensor] = None,
     blocks_per_iter: int = 16,
     max_blocks: Optional[int] = None,
@@ -426,7 +456,9 @@ def paged_gqa_decode(
     assert q.is_cuda and cache.k.is_cuda and cache.v.is_cuda
     assert q.dtype in (torch.float16, torch.bfloat16)
     assert cache.k.dtype == q.dtype and cache.v.dtype == q.dtype
-    assert cache.block_table.dtype == torch.int32 and cache.ctx_lens.dtype == torch.int32
+    assert (
+        cache.block_table.dtype == torch.int32 and cache.ctx_lens.dtype == torch.int32
+    )
     assert cache.layout in ("bhsd", "bshd")
 
     B, Hq, D = q.shape
@@ -442,7 +474,9 @@ def paged_gqa_decode(
         assert batch_ids.dtype == torch.int32 and batch_ids.is_cuda
 
     if perm_lbi is None:
-        perm_lbi = build_perm_lbi(cache.block_table, cache.ctx_lens, cache.block_size, order="logical")
+        perm_lbi = build_perm_lbi(
+            cache.block_table, cache.ctx_lens, cache.block_size, order="logical"
+        )
     else:
         assert perm_lbi.dtype == torch.int32 and perm_lbi.is_cuda
         assert perm_lbi.shape == cache.block_table.shape
@@ -465,24 +499,35 @@ def paged_gqa_decode(
     grid = (B_bucket * Hkv,)
 
     _paged_gqa_decode_kernel[grid](
-        q, cache.k, cache.v,
+        q,
+        cache.k,
+        cache.v,
         cache.block_table,
         perm_lbi,
         cache.ctx_lens,
         batch_ids,
         out,
-
-        stride_qb=q.stride(0), stride_qh=q.stride(1), stride_qd=q.stride(2),
-
-        stride_kblk=st["k_blk"], stride_ks=st["k_s"], stride_kh=st["k_h"], stride_kd=st["k_d"],
-        stride_vblk=st["v_blk"], stride_vs=st["v_s"], stride_vh=st["v_h"], stride_vd=st["v_d"],
-
-        stride_btb=st["bt_b"], stride_bti=st["bt_i"],
-        stride_pb=perm_lbi.stride(0), stride_pi=perm_lbi.stride(1),
-
-        stride_ob=out.stride(0), stride_oh=out.stride(1), stride_od=out.stride(2),
-
-        Hkv=Hkv, G=G, GQ=GQ,
+        stride_qb=q.stride(0),
+        stride_qh=q.stride(1),
+        stride_qd=q.stride(2),
+        stride_kblk=st["k_blk"],
+        stride_ks=st["k_s"],
+        stride_kh=st["k_h"],
+        stride_kd=st["k_d"],
+        stride_vblk=st["v_blk"],
+        stride_vs=st["v_s"],
+        stride_vh=st["v_h"],
+        stride_vd=st["v_d"],
+        stride_btb=st["bt_b"],
+        stride_bti=st["bt_i"],
+        stride_pb=perm_lbi.stride(0),
+        stride_pi=perm_lbi.stride(1),
+        stride_ob=out.stride(0),
+        stride_oh=out.stride(1),
+        stride_od=out.stride(2),
+        Hkv=Hkv,
+        G=G,
+        GQ=GQ,
         BLOCK_SIZE=cache.block_size,
         BLOCKS_PER_ITER=blocks_per_iter,
         D=D,
@@ -490,7 +535,6 @@ def paged_gqa_decode(
         SCALE=1.0 / math.sqrt(D),
         LAYOUT_BHSD=layout_bhsd,
         USE_BF16=use_bf16,
-
         num_warps=num_warps,
         num_stages=num_stages,
     )
@@ -500,6 +544,7 @@ def paged_gqa_decode(
 # -----------------------------
 # Tiny helper: write new KV (no extra kernels)
 # -----------------------------
+
 
 @torch.no_grad()
 def write_kv_token_(
