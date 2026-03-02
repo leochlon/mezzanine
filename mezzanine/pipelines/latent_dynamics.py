@@ -235,7 +235,7 @@ def eval_latent_dynamics(
         deltas["action_minus_action_shuf"]["r10_gain"] >= 0.05
     )
     verdict = (
-        "MAKE ✅" if (action_helps and shuffle_hurts) else "BREAK / INCONCLUSIVE ❌"
+        "MAKE OK" if (action_helps and shuffle_hurts) else "BREAK / INCONCLUSIVE X"
     )
 
     return {

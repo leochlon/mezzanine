@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
-"""pearl_ultra_low_overhead_bench_fused_v2.py
+"""overhead_benchmark.py
 
-Validate incremental overhead of a Pearl-style transcript when the transcript
-hash is computed inside the GEMM kernel epilogue (Triton).
-
-Key improvement vs v1:
-- Uses preallocated workspaces to avoid per-iteration CUDA allocations.
-  This makes the reported overhead track kernel work, not Python allocator work.
+Benchmark incremental overhead of computing a sampled transcript hash inside a GEMM
+kernel epilogue (Triton).
 
 Overhead is computed as:
   overhead% = (T_fused / T_base - 1) * 100
 
-By default, timing excludes any host digest readback.
+Timing excludes any host digest readback unless `--emit-digest` is requested.
 """
 
 from __future__ import annotations
@@ -86,7 +82,7 @@ def main() -> int:
     dtype = {"fp16": torch.float16, "bf16": torch.bfloat16}[args.dtype]
     sizes = [int(x) for x in args.sizes.split(",") if x.strip()]
 
-    print("\n=== Fused GEMM+hash ultra-low overhead validation (Triton, inplace) ===")
+    print("\n=== Fused GEMM+hash overhead benchmark (Triton, inplace) ===")
     info = {
         "torch_version": torch.__version__,
         "device": str(device),

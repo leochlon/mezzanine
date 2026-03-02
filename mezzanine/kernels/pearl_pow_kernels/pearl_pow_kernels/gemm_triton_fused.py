@@ -2,17 +2,15 @@
 from __future__ import annotations
 
 """
-Triton TensorCore GEMM with *fused* transcript hashing (hash in the GEMM epilogue).
+Optional Triton implementation of GEMM with fused transcript hashing.
 
-This provides the missing "production path" for Pearl-style traces:
-- The trace hash is computed inside the same kernel that computes C = A @ B.
-- Only a small deterministic sample of output tiles is hashed.
-- Only ~S*16 bytes are transferred back to CPU (S = num_samples), so overhead is tiny.
+When Triton is available, this module can compute a sampled transcript hash inside the
+same kernel that computes C = A @ B (hashing in the GEMM epilogue), so only a small
+hash payload is written out.
 
-Important practical notes:
-- This is Triton (not CUTLASS). It aims to make "PoW overhead" be <5% relative to a
-  matched baseline Triton GEMM kernel (same tiling) with hashing disabled.
-- A100 does NOT have native FP8/FP4 TensorCores; the fast path is FP16/BF16 GEMM.
+This is primarily used by:
+- `mezzanine/kernels/overhead_benchmark.py`
+- the fast paths in `rot_gemm`, `qnoise_gemm`, and `fp4_gemm` wrappers
 """
 
 from dataclasses import dataclass

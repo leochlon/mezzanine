@@ -1,30 +1,34 @@
 # pearl-pow-kernels
 
-A **reference / integration-ready** codebase implementing five kernel-level developments inspired by the
-**Pearl Polymath Project** open problems:
+Small, testable reference implementations for "GEMM + transcript hash" style experiments
+used by `mezzanine/kernels/overhead_benchmark.py`.
 
-1. **RotGEMM**: random-rotation (randomized Hadamard) MatMul + trace hashing  
-2. **QNoiseGEMM**: add-noise → quantize (FP8/INT8) → GEMM + trace hashing  
-3. **FP4ScaleHashGEMM**: FP4 group-quantization with **seeded scale-jitter** + trace hashing  
-4. **TrainPOW-GEMM**: training/finetuning wrappers with unbiased quantization options (stochastic rounding)  
-5. **TC-Hash Epilogue**: a “TensorCore-friendly” incremental 128-bit hash primitive + a proof-of-inference activation sampler
+The modules here follow the same basic shape:
 
-> Note: This repo is CPU-only in this environment, but the APIs are written so the compute kernels
-> can be swapped for Triton/CUDA kernels. Unit tests validate **functional** and **make/break**
-> properties (determinism, invariances, unbiasedness, avalanche), not full cryptographic security.
+1) deterministically transform/quantize `(A, B)` from a seed `sigma`,
+2) compute `C = A @ B` (or an approximate surrogate), and
+3) compute a sampled 128-bit transcript hash of intermediate tiles.
+
+Included modules:
+
+- `rot_gemm`: randomized Hadamard-style encoding + GEMM + sampled trace hash (optional Triton fused path)
+- `qnoise_gemm`: add deterministic noise + quantize (`float8` or `int8`) + GEMM + sampled trace hash
+- `fp4_gemm`: groupwise FP4-like quantization with optional scale jitter + GEMM + sampled trace hash
+- `train_pow`: training helpers (e.g. `PowLinear`) that route matmul through the schemes
+- `hash128`, `trace`, `rng`: incremental hash, trace sampling, deterministic RNG helpers
+- `poi`: activation transcript helper (hash a sampled subset of activations)
 
 ## Quickstart
+
+From this directory:
 
 ```bash
 pip install -e .
 pytest
 ```
 
-## Design goals
+## Notes
 
-- Deterministic, replayable perturbations from a seed `sigma`
-- Clean separation between:
-  - (a) **encoding** (noise/rotation/scale-jitter),
-  - (b) **compute** (GEMM),
-  - (c) **trace hashing** (sampled intermediate tiles)
-- “Make/break” tests: tests that fail if the critical protocol property is broken.
+- Transcript hashes are intended for determinism/regression checks and toy "trace commitment" experiments;
+  they are not a cryptographic security primitive.
+- The Triton kernel is optional and only used when Triton + CUDA are available.

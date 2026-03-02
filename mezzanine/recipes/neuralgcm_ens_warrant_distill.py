@@ -183,7 +183,7 @@ def _plot_diagnostics(
 
     v = verdict.get("verdict", False)
     fig.suptitle(
-        f"neuralgcm_ens_warrant_distill — {'MAKE ✅' if v else 'BREAK / INCONCLUSIVE ❌'}"
+        f"neuralgcm_ens_warrant_distill — {'MAKE OK' if v else 'BREAK / INCONCLUSIVE X'}"
     )
     fig.tight_layout()
 

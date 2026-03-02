@@ -9,8 +9,7 @@ import torch
 from .rng import torch_uniform01
 
 
-# FP4 codebook (16 entries). Matches the Pearl Polymath description (15 distinct values)
-# plus one duplicate 0 to fill the 4-bit space.
+# FP4-like codebook (16 entries); one duplicate 0 fills the 4-bit space.
 _FP4_CODEBOOK = torch.tensor(
     [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, -0.5, -1.0, -1.5, -2.0, -3.0, -4.0, -6.0, 0.0],
     dtype=torch.float32,

@@ -99,6 +99,14 @@ mezzanine run integration_circular_shift_distill --out out_integration --dataset
 mezzanine run eigen_permutation_distill --out out_eigen --dataset data/eigen_toy.npz --k_train 4 --k_test 16
 ```
 
+### Symmetry-aware kernel demo (Triton)
+
+Run the fused Clebsch–Gordan contraction demo:
+
+```bash
+python examples/cg_fused_kernel_demo.py --B 4096 --I 256 --J 256 --O 256 --P 32 --dtype bf16 --outdir cg_demo_out
+```
+
 ### PDEBench (optional: requires `h5py`)
 
 PDEBench uses an HDF5 adapter (`pdebench_h5`). Install `h5py` (or `pip install -e \".[md]\"`) and run:

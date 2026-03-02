@@ -482,7 +482,7 @@ class HFLLMHiddenStateOrderDistill(Recipe):
                     "acc_drop": "student_acc >= baseline_acc - 0.05",
                 },
                 "rel_gap": float(rel_gap),
-                "verdict": "MAKE ✅" if make else "BREAK / INCONCLUSIVE ❌",
+                "verdict": "MAKE OK" if make else "BREAK / INCONCLUSIVE X",
             },
         }
 

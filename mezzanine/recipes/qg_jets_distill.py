@@ -411,14 +411,14 @@ class QGJetsDistillRecipe(Recipe):
         # Make/break logic: avoid "BREAK" when baseline is already stable.
         if base_gap < 0.02 and base_pw < 0.02:
             criterion = "(baseline already stable: base_gap<0.02 and base_pw<0.02) and acc_drop<=0.05"
-            verdict = "MAKE ✅"
+            verdict = "MAKE OK"
         else:
             rel = max(tv_rel_improve, pw_rel_improve)
             criterion = "max(tv_rel_improve,pw_rel_improve)>=0.2 and acc_drop<=0.05"
             verdict = (
-                "MAKE ✅"
+                "MAKE OK"
                 if (rel >= 0.2 and acc_drop <= 0.05)
-                else "BREAK / INCONCLUSIVE ❌"
+                else "BREAK / INCONCLUSIVE X"
             )
 
         # Persist probabilities for downstream visualisation (small)

@@ -184,10 +184,10 @@ def train_pow_gemm(
 
 
 class PowLinear(nn.Module):
-    """Drop-in Linear layer that routes matmul through a PoW-friendly scheme.
+    """Drop-in Linear layer that routes matmul through a configured scheme.
 
-    This is a pragmatic bridge for experiments on training/finetuning (Problem (4)):
-    it lets you swap the linear algebra kernel and check if training remains stable.
+    This is a pragmatic bridge for experiments on training/finetuning: it lets you
+    swap the linear-algebra path and check whether training remains stable.
 
     Usage:
         layer = PowLinear(in_features, out_features, cfg=TrainPowConfig(...))

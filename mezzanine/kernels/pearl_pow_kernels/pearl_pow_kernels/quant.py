@@ -70,8 +70,8 @@ def quantize_int8_unbiased(
 ) -> QuantResult:
     """INT8 quantization with **stochastic rounding** (unbiased).
 
-    This is the unit-testable implementation of the Pearl Polymath remark:
-    ideally Q(A+E) is unbiased for A. (Stochastic rounding is a standard route.)
+    This uses stochastic rounding so (ignoring clipping) the dequantized value is an
+    unbiased estimator of the input.
 
     Returns q (int8) and scale (float32).
     """

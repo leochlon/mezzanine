@@ -367,9 +367,9 @@ class HFTextOrderDistillRecipe(Recipe):
         tv_rel_improve = float((base_gap - stud_gap) / max(1e-9, base_gap))
         acc_drop = float(base_acc - stud_acc)
         verdict = (
-            "MAKE ✅"
+            "MAKE OK"
             if (tv_rel_improve >= 0.2 and acc_drop <= 0.05)
-            else "BREAK / INCONCLUSIVE ❌"
+            else "BREAK / INCONCLUSIVE X"
         )
 
         summary = {

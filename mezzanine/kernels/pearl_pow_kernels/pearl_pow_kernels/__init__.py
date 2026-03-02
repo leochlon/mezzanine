@@ -1,18 +1,14 @@
 """pearl_pow_kernels
 
-Reference implementations of five Pearl Polymath MatMul-PoW kernel ideas.
+Experimental reference implementations for "GEMM + transcript hash" schemes.
 
 Public API:
 - rot_gemm.rot_gemm
 - qnoise_gemm.qnoise_gemm
 - fp4_gemm.fp4_scale_hash_gemm
-- train_pow.PowLinear (drop-in nn.Module)
-- hash128.TCHash128 (incremental 128-bit hash)
+- train_pow.PowLinear (drop-in nn.Module; can optionally return a transcript)
+- hash128.TCHash128 (incremental 128-bit hash helper)
 - trace.sampled_gemm_trace (hash intermediate GEMM tiles)
-
-All functions return both:
-- the computed output, and
-- a 128-bit transcript hash (bytes)
 """
 
 from .hash128 import TCHash128, tc_hash128

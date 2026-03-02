@@ -421,7 +421,7 @@ class LJFluidDistillRecipe(Recipe):
         # Conclusive MD gate:
         # - don't demand huge relative improvement when you're already good (RDF case)
         # - demand: accuracy doesn't crater AND student is stable under symmetries
-        verdict = "MAKE ✅" if (acc_drop <= 0.05 and stud_pw <= 0.10) else "CHECK ⚠️"
+        verdict = "MAKE OK" if (acc_drop <= 0.05 and stud_pw <= 0.10) else "CHECK"
 
         summary = {
             "exp": self.NAME,

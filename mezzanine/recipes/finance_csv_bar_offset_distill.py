@@ -289,12 +289,12 @@ class FinanceCSVBarOffsetDistillRecipe(Recipe):
         tv_rel_improve = float((base_gap - stud_gap) / max(1e-9, base_gap))
         acc_drop = float(base_acc - stud_acc)
         verdict = (
-            "MAKE ✅"
+            "MAKE OK"
             if (
                 tv_rel_improve >= float(args.min_tv_rel_improve)
                 and acc_drop <= float(args.max_acc_drop)
             )
-            else "BREAK / INCONCLUSIVE ❌"
+            else "BREAK / INCONCLUSIVE X"
         )
 
         summary: Dict[str, Any] = {

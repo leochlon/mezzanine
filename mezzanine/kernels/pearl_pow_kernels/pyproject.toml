@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pearl-pow-kernels"
 version = "0.1.0"
-description = "Reference implementations of Pearl Polymath MatMul-PoW kernel ideas (rotation, quantization-noise, FP4 scale jitter, training-friendly wrappers, and TC-friendly hash)."
+description = "Reference implementations of MatMul + transcript-hash kernel ideas (rotation, quantization-noise, FP4 scale jitter, training-friendly wrappers, and incremental hash)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

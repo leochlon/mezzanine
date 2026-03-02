@@ -13,7 +13,7 @@ Below are a few *language-first* examples.
 
 ## Example A: text order symmetry distillation (encoder + head)
 
-This is the simplest "LLM-ish" demo that runs fast and is very reproducible:
+This is the simplest language-first demo that runs fast and is reproducible:
 
 - World: HF dataset (e.g., `ag_news`, `imdb`)
 - Symmetry: **sentence order** (shuffle sentences)
@@ -22,12 +22,18 @@ This is the simplest "LLM-ish" demo that runs fast and is very reproducible:
 
 CLI:
 ```bash
-mezzanine run hf_text_order_distill --out out_text       --dataset ag_news --n_train 5000 --n_test 2000       --model_name distilbert-base-uncased       --k_train 8 --k_test 16
+mezzanine run hf_text_order_distill --out out_text \
+  --dataset ag_news --n_train 5000 --n_test 2000 \
+  --model_name distilbert-base-uncased \
+  --k_train 8 --k_test 16
 ```
 
 Swap in a decoder-only "LLM encoder" (works best with a padding token set):
 ```bash
-mezzanine run hf_text_order_distill --out out_text_llm       --dataset ag_news --n_train 2000 --n_test 1000       --model_name TinyLlama/TinyLlama-1.1B-Chat-v1.0       --pool mean --max_length 256
+mezzanine run hf_text_order_distill --out out_text_llm \
+  --dataset ag_news --n_train 2000 --n_test 1000 \
+  --model_name TinyLlama/TinyLlama-1.1B-Chat-v1.0 \
+  --pool mean --max_length 256
 ```
 
 ## Example B: prompt-level order sensitivity (causal LM scoring)
@@ -58,13 +64,10 @@ The package recipe `hf_text_order_distill` is exactly this pattern (with an enco
 and the same objective works when the teacher is a causal LM (prompt scoring).
 
 
-## Example D: *strong* LLM distillation (logits → hidden-state head)
+## Example D: logits → hidden-state head (BoolQ)
 
-This is the recommended "LLM distill" demo if you want something that is:
-
-- genuinely **LLM-native** (teacher comes from **logits**),
-- genuinely **representation-based** (student uses **hidden states**, not text-only probing),
-- still lightweight (frozen backbone + tiny head).
+This example keeps the backbone frozen and trains a small head on hidden states to match
+a symmetry-marginalized teacher defined by logits.
 
 World: BoolQ (passage + question → yes/no)\
 Symmetry: sentence order in the passage\

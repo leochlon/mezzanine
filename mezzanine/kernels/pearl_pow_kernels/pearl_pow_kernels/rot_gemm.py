@@ -24,9 +24,9 @@ except Exception:  # pragma: no cover
 class RotGemmConfig:
     """Configuration for the random-rotation scheme.
 
-    CPU reference uses randomized Hadamard stages (Problem 1).
-    CUDA fast path uses a cheap K-tile permutation gauge (still AB-invariant)
-    and fuses hashing into the GEMM kernel epilogue.
+    CPU reference uses randomized Hadamard stages.
+    CUDA fast path uses a deterministic K-tile permutation gauge (AB-invariant) and
+    can fuse hashing into the GEMM kernel epilogue.
     """
 
     stages: int = 2
@@ -99,7 +99,7 @@ def rot_gemm(
       - uses Triton TensorCore GEMM
       - fuses transcript hashing into the GEMM kernel epilogue
       - uses a cheap K-tile permutation gauge (AB-invariant) instead of explicit Hadamard encode
-        (keeps overhead tiny)
+        (avoids explicit Hadamard encoding)
 
     CPU (or autograd) path:
       - uses randomized Hadamard encode + torch matmul + CPU trace reference.

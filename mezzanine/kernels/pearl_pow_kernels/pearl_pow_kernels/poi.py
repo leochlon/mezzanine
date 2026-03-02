@@ -13,7 +13,7 @@ from .rng import derive_seed_u64, rand_u64, torch_sign_vector
 
 @dataclass(frozen=True)
 class POIConfig:
-    """Configuration for an activation transcript (proof-of-inference sketch)."""
+    """Configuration for a deterministic activation transcript (sample-and-hash)."""
 
     samples_per_tensor: int = 128
     quant: Literal["fp16", "fp32", "int8"] = "fp16"
@@ -28,9 +28,8 @@ def activation_transcript(
 ) -> Tuple[bytes, List[torch.Tensor]]:
     """Compute a deterministic transcript hash of a subset of activations.
 
-    This is a practical building block for exploring Problem (7):
-    - not a full proof system,
-    - but a *trace commitment* primitive that is cheap and deterministic.
+    This is a lightweight "trace commitment" helper: it hashes a deterministic sample
+    of the provided tensors (optionally including shape metadata).
 
     Returns
     -------

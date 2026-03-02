@@ -408,7 +408,7 @@ class PDEBenchTranslationDistillRecipe(Recipe):
 
         gap_improves = student_gap["gap_mse"] <= 0.8 * teacher_gap["gap_mse"]
         mse_ok = student_mse_test <= 1.5 * mse_test
-        verdict = "MAKE ✅" if (gap_improves and mse_ok) else "BREAK / INCONCLUSIVE ❌"
+        verdict = "MAKE OK" if (gap_improves and mse_ok) else "BREAK / INCONCLUSIVE X"
 
         results = {
             "world": {

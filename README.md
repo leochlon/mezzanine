@@ -1,11 +1,11 @@
-# Mezzanine (v1.0)
+# Mezzanine
 
 Mezzanine is a small research toolkit for **distilling symmetry‑marginalized invariants** (“distill the expectation”), and for **measuring instability** (the *warrant gap*) and **distilling symmetry‑marginalized invariant world models** into a single forward pass.
 
 > World models ≠ pixel prediction.  
 > Warranted inference ≠ maximum likelihood on a single realization.
 
-## What you get in v1.0
+## What you get
 
 ### Registries (discoverability + plugins)
 - **Adapters registry**: HuggingFace Datasets, LeRobot (HF robotics datasets), Gymnasium, I‑PHYRE
@@ -145,6 +145,12 @@ Run a recipe:
 
 ```bash
 mezzanine run kepler_root_distill --out out_kepler --dataset data/kepler_root_toy.npz --k_train 4 --k_test 16
+```
+
+Symmetry-aware kernel demo (Triton):
+
+```bash
+python examples/cg_fused_kernel_demo.py --B 4096 --I 256 --J 256 --O 256 --P 32 --dtype bf16 --outdir cg_demo_out
 ```
 
 More details: `docs/physics_addons.md`.
@@ -297,7 +303,7 @@ See also:
 - `docs/llm_examples.md` (LLM-oriented usage patterns)
 
 
-- **NEW (v1.2):** `hf_llm_hiddenstate_order_distill` — logits→hidden-state distillation for order-invariant BoolQ.
+- `hf_llm_hiddenstate_order_distill` — logits→hidden-state distillation for order-robust BoolQ.
 
 
 ### Finance recipe: bar-offset symmetry distillation (CSV)

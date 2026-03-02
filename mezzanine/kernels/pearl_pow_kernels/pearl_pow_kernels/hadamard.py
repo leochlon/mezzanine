@@ -20,8 +20,7 @@ def fwht(x: torch.Tensor, *, dim: int = -1) -> torch.Tensor:
     -----
     - Works with float and complex dtypes.
     - Autograd-friendly (uses basic tensor ops; no in-place ops).
-    - For the rotation scheme in Pearl Polymath, the unnormalized H is convenient:
-      H^{-1} = H / n.
+    - For randomized Hadamard rotations, the unnormalized H is convenient: H^{-1} = H / n.
 
     Parameters
     ----------

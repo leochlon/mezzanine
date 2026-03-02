@@ -27,7 +27,7 @@ except Exception:  # pragma: no cover
 
 @dataclass(frozen=True)
 class QNoiseGemmConfig:
-    """Config for Pearl-GEMM style: add noise then quantize then GEMM."""
+    """Config for noise+quantize GEMM (with transcript hashing)."""
 
     noise_dist: Literal["normal", "rademacher", "uniform"] = "normal"
     noise_scale: float = 0.01  # std for normal; amplitude for uniform/rademacher
@@ -53,16 +53,16 @@ def qnoise_gemm(
     sigma: int | bytes | str,
     config: QNoiseGemmConfig = QNoiseGemmConfig(),
 ) -> Tuple[torch.Tensor, bytes, dict]:
-    """Pearl-GEMM: C = Q(A+E) @ Q(B+F) with transcript hash.
+    """Compute C = Q(A+E) @ Q(B+F) and a sampled transcript hash.
 
-    CUDA fast path (float8 mode only):
-      - uses Triton TensorCore GEMM
-      - injects a *cheap* deterministic rank-1 noise in-kernel (controlled by noise_scale)
-      - fuses transcript hashing into the GEMM epilogue
-      - does NOT emulate true float8 quantization on pre-Hopper GPUs (A100). The goal
-        here is "PoW overhead" validation, not accurate float8 numerics.
+    Reference path:
+      - add deterministic noise (seeded by sigma),
+      - quantize+dequantize (float8 or int8),
+      - matmul, then hash a sampled subset of tiles.
 
-    CPU (and int8 mode) use the original reference pipeline.
+    Optional CUDA/Triton path (float8 mode only):
+      - uses a fused GEMM+hash kernel with deterministic in-kernel noise,
+      - intended for overhead experiments (it does not model float8 quantization).
     """
     if A.ndim != 2 or B.ndim != 2:
         raise ValueError("A and B must be 2D tensors")
