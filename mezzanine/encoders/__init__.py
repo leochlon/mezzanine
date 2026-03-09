@@ -72,3 +72,10 @@ try:  # pragma: no cover
     __all__ += ["HFCausalLMEncoder", "HFCausalLMEncoderConfig"]
 except Exception:
     pass
+
+try:  # pragma: no cover
+    from .depth_anything import DepthAnythingEncoder, DepthAnythingEncoderConfig  # type: ignore
+
+    __all__ += ["DepthAnythingEncoder", "DepthAnythingEncoderConfig"]
+except Exception:
+    pass

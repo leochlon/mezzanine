@@ -25,6 +25,12 @@ from .lj import (
     LJCoordinateNoiseSymmetry,
     LJCoordinateNoiseConfig,
 )
+from .depth_geometric import (
+    DepthGeometricSymmetry,
+    DepthGeometricSymmetryConfig,
+    apply_d4,
+    inverse_d4,
+)
 from .qg import (
     QGPermutationSymmetry,
     QGPermutationConfig,
@@ -82,4 +88,8 @@ __all__ = [
     "QGReflectionConfig",
     "QGCoordNoiseSymmetry",
     "QGCoordNoiseConfig",
+    "DepthGeometricSymmetry",
+    "DepthGeometricSymmetryConfig",
+    "apply_d4",
+    "inverse_d4",
 ]

@@ -68,6 +68,8 @@ def load_builtin_plugins() -> None:
     from .symmetries import circular_shift  # noqa: F401
     from .symmetries import periodic_translation  # noqa: F401
 
+    from .symmetries import depth_geometric  # noqa: F401
+
     try:  # pragma: no cover
         from .symmetries import space_group  # noqa: F401
     except Exception:
@@ -89,6 +91,11 @@ def load_builtin_plugins() -> None:
     except Exception:
         pass
     from .encoders import qg as qg_encoders  # noqa: F401
+
+    try:  # pragma: no cover
+        from .encoders import depth_anything  # noqa: F401
+    except Exception:
+        pass
 
     # Recipes
     try:  # pragma: no cover
